@@ -1,31 +1,41 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from nltk.sentiment import SentimentIntensityAnalyzer
 
+# Initialize app
 app = FastAPI()
 
-# CORS setup
+# CORS: Let frontend call backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Adjust if needed
+    allow_origins=["http://localhost:5173"],  # adjust based on frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-) 
+)
 
+# Load the sentiment analyzer
+sia = SentimentIntensityAnalyzer()
+
+# Pydantic model
 class SentimentRequest(BaseModel):
     text: str
 
 @app.post("/analyse")
-def analyse_sentiment(request: SentimentRequest):
-    text = request.text.lower()
+def analyze_sentiment(request: SentimentRequest):
+    scores = sia.polarity_scores(request.text)
 
-    # fake data
-    if any(word in text for word in ["love", "great", "awesome", "happy"]):
+    # Simple rule-based decision
+    compound = scores["compound"]
+    if compound >= 0.05:
         sentiment = "positive"
-    elif any(word in text for word in ["bad", "hate", "angry", "terrible", "sad"]):
+    elif compound <= -0.05:
         sentiment = "negative"
     else:
         sentiment = "neutral"
 
-    return {"sentiment": sentiment}
+    return {
+        "sentiment": sentiment,
+        "scores": scores  # Optional: return full SIA scores
+    }
